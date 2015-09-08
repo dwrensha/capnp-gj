@@ -9,5 +9,6 @@ repository = "https://github.com/dwrensha/capnp-gj"
 keywords = ["async"]
 
 [dependencies]
+byteorder = "*"
 gj = "*"
 capnp = "*"
