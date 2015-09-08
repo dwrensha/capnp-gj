@@ -33,8 +33,8 @@ pub fn read_message<S>(stream: S,
 }
 
 pub fn write_message<S, A>(stream: S,
-                           message: &message::Builder<A>) -> Promise<S, ::capnp::Error>
-    where S: AsyncWrite, A: message::Allocator
+                           message: message::Builder<A>) -> Promise<(S, message::Builder<A>), ::capnp::Error>
+    where S: AsyncWrite, A: message::Allocator + 'static
 {
     unimplemented!()
 }
