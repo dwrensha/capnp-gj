@@ -95,7 +95,6 @@ fn read_segment_table<S>(stream: S)
     })
 }
 
-
 struct WordVec(Vec<Word>);
 
 impl ::std::ops::Deref for WordVec {
@@ -130,8 +129,10 @@ fn read_segments<S>(stream: S,
 }
 
 pub fn write_message<S, A>(_stream: S,
-                           _message: message::Builder<A>) -> Promise<(S, message::Builder<A>), ::capnp::Error>
+                           message: message::Builder<A>)
+                           -> Promise<(S, message::Builder<A>), ::capnp::Error>
     where S: AsyncWrite, A: message::Allocator + 'static
 {
+    let _segments = message.get_segments_for_output();
     unimplemented!()
 }
