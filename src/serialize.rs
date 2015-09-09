@@ -128,11 +128,95 @@ fn read_segments<S>(stream: S,
     })
 }
 
-pub fn write_message<S, A>(_stream: S,
+
+pub struct OutputSegmentsContainer<A> where A: message::Allocator {
+    message: message::Builder<A>,
+    segments: ::capnp::OutputSegments<'static>
+}
+
+impl <A> OutputSegmentsContainer<A> where A: message::Allocator {
+    fn new(message: message::Builder<A>) -> OutputSegmentsContainer<A> {
+        let segments: ::capnp::OutputSegments<'static> = {
+            let output_segments = message.get_segments_for_output();
+            unsafe {
+                ::std::mem::transmute(output_segments)
+            }
+        };
+        OutputSegmentsContainer {
+            message: message,
+            segments: segments
+        }
+    }
+    fn get<'a>(&'a self) -> &'a ::capnp::OutputSegments<'a> {
+        &self.segments
+    }
+}
+
+pub fn write_message<S, A>(stream: S,
                            message: message::Builder<A>)
                            -> Promise<(S, message::Builder<A>), ::capnp::Error>
     where S: AsyncWrite, A: message::Allocator + 'static
 {
-    let _segments = message.get_segments_for_output();
-    unimplemented!()
+    let segments = OutputSegmentsContainer::new(message);
+    write_segment_table(stream, segments).then(|(stream, segments)| {
+        Ok(write_segments(stream, segments))
+    }).map(|(stream, segments)| {
+        Ok((stream, segments.message))
+    })
+}
+
+fn write_segment_table<S, A>(stream: S,
+                             segments: OutputSegmentsContainer<A>)
+                             -> Promise<(S, OutputSegmentsContainer<A>), ::capnp::Error>
+    where S: AsyncWrite, A: message::Allocator + 'static
+{
+    let segment_count = segments.get().len();
+    let mut buf: Vec<u8> = vec![0; ((2 + segment_count) & !1 ) * 4];
+
+    LittleEndian::write_u32(&mut buf[0..4], segment_count as u32 - 1);
+    for idx in 0 .. segment_count {
+        LittleEndian::write_u32(&mut buf[(idx * 4)..((idx + 1) * 4)], segments.get()[idx].len() as u32);
+    }
+    stream.write(buf).map_else(move |r| match r {
+        Err(e) => Err(e.error.into()),
+        Ok((stream, _)) => Ok((stream, segments))
+    })
+}
+
+struct WritingSegment<A> where A: message::Allocator + 'static {
+    idx: usize,
+    segments: OutputSegmentsContainer<A>
+}
+
+impl <A> ::std::ops::Deref for WritingSegment<A> where A: message::Allocator + 'static {
+    type Target = [u8];
+    fn deref<'a>(&'a self) -> &'a [u8] {
+        Word::words_to_bytes(self.segments.get()[self.idx])
+    }
+}
+
+fn write_segments<S, A>(stream: S,
+                        segments: OutputSegmentsContainer<A>)
+                        -> Promise<(S, OutputSegmentsContainer<A>), ::capnp::Error>
+    where S: AsyncWrite, A: message::Allocator + 'static
+{
+    write_segments_loop(stream, segments, 0)
+}
+
+fn write_segments_loop<S, A>(stream: S,
+                             segments: OutputSegmentsContainer<A>,
+                             idx: usize)
+                        -> Promise<(S, OutputSegmentsContainer<A>), ::capnp::Error>
+    where S: AsyncWrite, A: message::Allocator + 'static
+{
+    if idx >= segments.get().len() {
+        Promise::fulfilled((stream, segments))
+    } else {
+        let buf = WritingSegment { idx: idx, segments: segments };
+        stream.write(buf).then_else(move |r| match r {
+            Err(e) => Err(e.error.into()),
+            Ok((stream, buf)) =>
+                Ok(write_segments_loop(stream, buf.segments, idx + 1))
+        })
+    }
 }
