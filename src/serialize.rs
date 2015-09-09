@@ -96,18 +96,38 @@ fn read_segment_table<S>(stream: S)
 }
 
 
+struct WordVec(Vec<Word>);
 
-fn read_segments<S>(_stream: S,
+impl ::std::ops::Deref for WordVec {
+    type Target = [u8];
+    fn deref<'a>(&'a self) -> &'a [u8] {
+        Word::words_to_bytes(&self.0[..])
+    }
+}
+
+impl ::std::ops::DerefMut for WordVec {
+    fn deref_mut<'a>(&'a mut self) -> &'a mut [u8] {
+        Word::words_to_bytes_mut (&mut self.0[..])
+    }
+}
+
+fn read_segments<S>(stream: S,
                     total_words: usize,
-                    _segment_slices: Vec<(usize, usize)>,
-                    _options: message::ReaderOptions) -> Promise<(S, message::Reader<OwnedSegments>),
+                    segment_slices: Vec<(usize, usize)>,
+                    options: message::ReaderOptions) -> Promise<(S, message::Reader<OwnedSegments>),
                                                                    ::capnp::Error>
     where S: AsyncRead
 {
-    let _owned_space = Word::allocate_zeroed_vec(total_words);
-    unimplemented!()
+    let owned_space = WordVec(Word::allocate_zeroed_vec(total_words));
+    let len = owned_space.len();
+    stream.read(owned_space, len).map_else(move |r| match r {
+        Err(e) => Err(e.error.into()),
+        Ok((stream, vec, _)) => {
+            let segments = OwnedSegments { segment_slices: segment_slices, owned_space: vec.0 };
+            Ok((stream, message::Reader::new(segments, options)))
+        }
+    })
 }
-
 
 pub fn write_message<S, A>(_stream: S,
                            _message: message::Builder<A>) -> Promise<(S, message::Builder<A>), ::capnp::Error>
