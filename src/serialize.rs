@@ -60,9 +60,11 @@ fn read_segment_table<S>(stream: S)
         Ok((stream, buf, _)) => {
             let segment_count = LittleEndian::read_u32(&buf[0..4]).wrapping_add(1) as usize;
             if segment_count >= 512 {
+                unimplemented!()
                 // TODO error
                 //return Err()
             } else if segment_count == 0 {
+                unimplemented!()
                 // TODO error. too few segments.
             }
             let mut segment_slices = Vec::with_capacity(segment_count);
@@ -174,7 +176,7 @@ fn write_segment_table<S, A>(stream: S,
     let mut buf: Vec<u8> = vec![0; ((2 + segment_count) & !1 ) * 4];
 
     LittleEndian::write_u32(&mut buf[0..4], segment_count as u32 - 1);
-    for idx in 0 .. segment_count {
+    for idx in 1..segment_count {
         LittleEndian::write_u32(&mut buf[(idx * 4)..((idx + 1) * 4)], segments.get()[idx].len() as u32);
     }
     stream.write(buf).map_else(move |r| match r {
