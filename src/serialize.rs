@@ -176,8 +176,8 @@ fn write_segment_table<S, A>(stream: S,
     let mut buf: Vec<u8> = vec![0; ((2 + segment_count) & !1 ) * 4];
 
     LittleEndian::write_u32(&mut buf[0..4], segment_count as u32 - 1);
-    for idx in 1..segment_count {
-        LittleEndian::write_u32(&mut buf[(idx * 4)..((idx + 1) * 4)], segments.get()[idx].len() as u32);
+    for idx in 0..segment_count {
+        LittleEndian::write_u32(&mut buf[((idx + 1) * 4)..((idx + 2) * 4)], segments.get()[idx].len() as u32);
     }
     stream.write(buf).map_else(move |r| match r {
         Err(e) => Err(e.error.into()),

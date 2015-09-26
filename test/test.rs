@@ -70,6 +70,12 @@ mod tests {
         assert_eq!(people.len(), 2);
         let alice = people.get(0);
         assert_eq!(alice.get_id(), 123);
+        assert_eq!(alice.get_name().unwrap(), "Alice");
+        assert_eq!(alice.get_email().unwrap(), "alice@example.com");
+
+        let bob = people.get(1);
+        assert_eq!(bob.get_id(), 456);
+        assert_eq!(bob.get_name().unwrap(), "Bob");
     }
 
     #[test]
