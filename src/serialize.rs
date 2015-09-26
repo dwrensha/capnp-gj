@@ -83,7 +83,7 @@ fn read_segment_table<S>(stream: S)
                     Ok((stream, buf, _)) => {
                         for idx in 0..(segment_count - 1) {
                             let segment_len =
-                                LittleEndian::read_u32(&buf[(idx * 4)..(idx * 4 + 1)]) as usize;
+                                LittleEndian::read_u32(&buf[(idx * 4)..((idx + 1) * 4)]) as usize;
                             segment_slices.push((total_words, total_words + segment_len));
                             total_words += segment_len;
                         }

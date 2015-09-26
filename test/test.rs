@@ -78,9 +78,7 @@ mod tests {
         assert_eq!(bob.get_name().unwrap(), "Bob");
     }
 
-    #[test]
-    fn basic() {
-        let mut message = message::Builder::new_default();
+    fn fill_and_send_message(mut message: message::Builder<message::HeapAllocator>) {
         {
             let mut address_book = message.init_root::<address_book::Builder>();
             populate_address_book(address_book.borrow());
@@ -105,5 +103,19 @@ mod tests {
             join_handle.join().unwrap();
             Ok(())
         }).unwrap();
+
     }
+
+    #[test]
+    fn single_segment() {
+        fill_and_send_message(message::Builder::new_default());
+    }
+
+    #[test]
+    fn multi_segment() {
+        let builder_options = message::HeapAllocator::new()
+            .first_segment_words(1).allocation_strategy(::capnp::message::AllocationStrategy::FixedSize);
+        fill_and_send_message(message::Builder::new(builder_options));
+    }
+
 }
