@@ -43,7 +43,7 @@ impl message::ReaderSegments for OwnedSegments {
 /// Returns None on EOF.
 pub fn try_read_message<S>(
     _stream: S,
-    _options: message::ReaderOptions) -> Promise<(S, message::Reader<OwnedSegments>), ::capnp::Error>
+    _options: message::ReaderOptions) -> Promise<(S, Option<message::Reader<OwnedSegments>>), ::capnp::Error>
     where S: AsyncRead
 {
     unimplemented!()
