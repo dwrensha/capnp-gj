@@ -42,11 +42,17 @@ impl message::ReaderSegments for OwnedSegments {
 
 /// Returns None on EOF.
 pub fn try_read_message<S>(
-    _stream: S,
-    _options: message::ReaderOptions) -> Promise<(S, Option<message::Reader<OwnedSegments>>), ::capnp::Error>
+    stream: S,
+    options: message::ReaderOptions) -> Promise<(S, Option<message::Reader<OwnedSegments>>), ::capnp::Error>
     where S: AsyncRead
 {
-    unimplemented!()
+    try_read_segment_table(stream).then(move |(s, r)| {
+        match r {
+            Some((total_words, segment_slices)) =>
+                Ok(read_segments(s, total_words, segment_slices, options).map(|(s,m)| Ok((s, Some(m))))),
+            None => Ok(Promise::fulfilled((s, None)))
+        }
+    })
 }
 
 pub fn read_message<S>(stream: S,
@@ -54,18 +60,26 @@ pub fn read_message<S>(stream: S,
                                                                    ::capnp::Error>
     where S: AsyncRead
 {
-    read_segment_table(stream).then(move |(stream, total_words, segment_slices)| {
-        Ok(read_segments(stream, total_words, segment_slices, options))
+    try_read_message(stream, options).map(|(s, r)| {
+        match r {
+            Some(m) => Ok((s, m)),
+            None => Err(::capnp::Error::Io(::std::io::Error::new(::std::io::ErrorKind::Other,
+                                                                 "premature EOF"))),
+        }
     })
 }
 
-fn read_segment_table<S>(stream: S)
-                         -> Promise<(S, usize, Vec<(usize, usize)>), ::capnp::Error>
+fn try_read_segment_table<S>(stream: S)
+                         -> Promise<(S, Option<(usize, Vec<(usize, usize)>)>), ::capnp::Error>
     where S: AsyncRead
 {
     let buf: Vec<u8> = vec![0; 8];
-    stream.read(buf, 8).then_else(move |r| match r {
+    stream.try_read(buf, 8).then_else(move |r| match r {
         Err(e) => Err(e.error.into()),
+        Ok((stream, _, 0)) => Ok(Promise::fulfilled((stream, None))),
+        Ok((_, _, n)) if n < 8 =>
+            Err(::capnp::Error::Io(::std::io::Error::new(::std::io::ErrorKind::Other,
+                                                         "premature EOF"))),
         Ok((stream, buf, _)) => {
             let segment_count = LittleEndian::read_u32(&buf[0..4]).wrapping_add(1) as usize;
             if segment_count >= 512 {
@@ -96,11 +110,11 @@ fn read_segment_table<S>(stream: S)
                             segment_slices.push((total_words, total_words + segment_len));
                             total_words += segment_len;
                         }
-                        Ok((stream, total_words, segment_slices))
+                        Ok((stream, Some((total_words, segment_slices))))
                     }
                 }))
             } else {
-                Ok(Promise::fulfilled((stream, total_words, segment_slices)))
+                Ok(Promise::fulfilled((stream, Some((total_words, segment_slices)))))
             }
         }
     })
