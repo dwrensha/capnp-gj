@@ -122,15 +122,14 @@ fn try_read_segment_table<S>(stream: S)
 
 struct WordVec(Vec<Word>);
 
-impl ::std::ops::Deref for WordVec {
-    type Target = [u8];
-    fn deref<'a>(&'a self) -> &'a [u8] {
+impl AsRef<[u8]> for WordVec {
+    fn as_ref<'a>(&'a self) -> &'a [u8] {
         Word::words_to_bytes(&self.0[..])
     }
 }
 
-impl ::std::ops::DerefMut for WordVec {
-    fn deref_mut<'a>(&'a mut self) -> &'a mut [u8] {
+impl AsMut<[u8]> for WordVec {
+    fn as_mut<'a>(&'a mut self) -> &'a mut [u8] {
         Word::words_to_bytes_mut (&mut self.0[..])
     }
 }
@@ -143,7 +142,7 @@ fn read_segments<S>(stream: S,
     where S: AsyncRead
 {
     let owned_space = WordVec(Word::allocate_zeroed_vec(total_words));
-    let len = owned_space.len();
+    let len = owned_space.as_ref().len();
     stream.read(owned_space, len).map_else(move |r| match r {
         Err(e) => Err(e.error.into()),
         Ok((stream, vec, _)) => {
@@ -213,9 +212,8 @@ struct WritingSegment<A> where A: message::Allocator + 'static {
     segments: OutputSegmentsContainer<A>
 }
 
-impl <A> ::std::ops::Deref for WritingSegment<A> where A: message::Allocator + 'static {
-    type Target = [u8];
-    fn deref<'a>(&'a self) -> &'a [u8] {
+impl <A> AsRef<[u8]> for WritingSegment<A> where A: message::Allocator + 'static {
+    fn as_ref<'a>(&'a self) -> &'a [u8] {
         Word::words_to_bytes(self.segments.get()[self.idx])
     }
 }
