@@ -91,7 +91,7 @@ mod tests {
                     serialize::read_message(stream, message::ReaderOptions::new()).then(|(_, message_reader)| {
                         let address_book = message_reader.get_root::<address_book::Reader>().unwrap();
                         read_address_book(address_book);
-                        Ok(gj::Promise::fulfilled(()))
+                        Ok(gj::Promise::ok(()))
                     });
                 promise.wait(wait_scope).unwrap();
                 Ok(())
