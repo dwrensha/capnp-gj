@@ -50,7 +50,7 @@ pub fn try_read_message<S>(
         match r {
             Some((total_words, segment_slices)) =>
                 Ok(read_segments(s, total_words, segment_slices, options).map(|(s,m)| Ok((s, Some(m))))),
-            None => Ok(Promise::fulfilled((s, None)))
+            None => Ok(Promise::ok((s, None)))
         }
     })
 }
@@ -76,7 +76,7 @@ fn try_read_segment_table<S>(stream: S)
     let buf: Vec<u8> = vec![0; 8];
     stream.try_read(buf, 8).then_else(move |r| match r {
         Err(e) => Err(e.error.into()),
-        Ok((stream, _, 0)) => Ok(Promise::fulfilled((stream, None))),
+        Ok((stream, _, 0)) => Ok(Promise::ok((stream, None))),
         Ok((_, _, n)) if n < 8 =>
             Err(::capnp::Error::Io(::std::io::Error::new(::std::io::ErrorKind::Other,
                                                          "premature EOF"))),
@@ -114,7 +114,7 @@ fn try_read_segment_table<S>(stream: S)
                     }
                 }))
             } else {
-                Ok(Promise::fulfilled((stream, Some((total_words, segment_slices)))))
+                Ok(Promise::ok((stream, Some((total_words, segment_slices)))))
             }
         }
     })
@@ -233,7 +233,7 @@ fn write_segments_loop<S, A>(stream: S,
     where S: AsyncWrite, A: message::Allocator + 'static
 {
     if idx >= segments.get().len() {
-        Promise::fulfilled((stream, segments))
+        Promise::ok((stream, segments))
     } else {
         let buf = WritingSegment { idx: idx, segments: segments };
         stream.write(buf).then_else(move |r| match r {
