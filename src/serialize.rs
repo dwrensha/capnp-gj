@@ -63,8 +63,7 @@ pub fn read_message<S>(stream: S,
     try_read_message(stream, options).map(|(s, r)| {
         match r {
             Some(m) => Ok((s, m)),
-            None => Err(::capnp::Error::Io(::std::io::Error::new(::std::io::ErrorKind::Other,
-                                                                 "premature EOF"))),
+            None => Err(::capnp::Error::new_decode_error("premature EOF".to_string())),
         }
     })
 }
@@ -78,8 +77,7 @@ fn try_read_segment_table<S>(stream: S)
         Err(e) => Err(e.error.into()),
         Ok((stream, _, 0)) => Ok(Promise::ok((stream, None))),
         Ok((_, _, n)) if n < 8 =>
-            Err(::capnp::Error::Io(::std::io::Error::new(::std::io::ErrorKind::Other,
-                                                         "premature EOF"))),
+            Err(::capnp::Error::new_decode_error("premature EOF".to_string())),
         Ok((stream, buf, _)) => {
             let segment_count = LittleEndian::read_u32(&buf[0..4]).wrapping_add(1) as usize;
             if segment_count >= 512 {
