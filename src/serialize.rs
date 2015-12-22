@@ -49,8 +49,8 @@ pub fn try_read_message<S>(
     try_read_segment_table(stream).then(move |(s, r)| {
         match r {
             Some((total_words, segment_slices)) =>
-                Ok(read_segments(s, total_words, segment_slices, options).map(|(s,m)| Ok((s, Some(m))))),
-            None => Ok(Promise::ok((s, None)))
+                read_segments(s, total_words, segment_slices, options).map(|(s,m)| Ok((s, Some(m)))),
+            None => Promise::ok((s, None))
         }
     })
 }
@@ -74,10 +74,10 @@ fn try_read_segment_table<S>(stream: S)
 {
     let buf: Vec<u8> = vec![0; 8];
     stream.try_read(buf, 8).then_else(move |r| match r {
-        Err(e) => Err(e.error.into()),
-        Ok((stream, _, 0)) => Ok(Promise::ok((stream, None))),
+        Err(e) => Promise::err(e.error.into()),
+        Ok((stream, _, 0)) => Promise::ok((stream, None)),
         Ok((_, _, n)) if n < 8 =>
-            Err(::capnp::Error::new_decode_error("premature EOF".to_string())),
+            Promise::err(::capnp::Error::new_decode_error("premature EOF".to_string())),
         Ok((stream, buf, _)) => {
             let segment_count = LittleEndian::read_u32(&buf[0..4]).wrapping_add(1) as usize;
             if segment_count >= 512 {
@@ -99,7 +99,7 @@ fn try_read_segment_table<S>(stream: S)
                         vec![0; 4 * (segment_count & !1)]
                     };
                 let buf_len = buf.len();
-                Ok(stream.read(buf, buf_len).map_else(move |r| match r {
+                stream.read(buf, buf_len).map_else(move |r| match r {
                     Err(e) => Err(e.error.into()),
                     Ok((stream, buf, _)) => {
                         for idx in 0..(segment_count - 1) {
@@ -110,9 +110,9 @@ fn try_read_segment_table<S>(stream: S)
                         }
                         Ok((stream, Some((total_words, segment_slices))))
                     }
-                }))
+                })
             } else {
-                Ok(Promise::ok((stream, Some((total_words, segment_slices)))))
+                Promise::ok((stream, Some((total_words, segment_slices))))
             }
         }
     })
@@ -181,7 +181,7 @@ pub fn write_message<S, A>(stream: S,
 {
     let segments = OutputSegmentsContainer::new(message);
     write_segment_table(stream, segments).then(|(stream, segments)| {
-        Ok(write_segments(stream, segments))
+        write_segments(stream, segments)
     }).map(|(stream, segments)| {
         Ok((stream, segments.message))
     })
@@ -235,9 +235,9 @@ fn write_segments_loop<S, A>(stream: S,
     } else {
         let buf = WritingSegment { idx: idx, segments: segments };
         stream.write(buf).then_else(move |r| match r {
-            Err(e) => Err(e.error.into()),
+            Err(e) => Promise::err(e.error.into()),
             Ok((stream, buf)) =>
-                Ok(write_segments_loop(stream, buf.segments, idx + 1))
+                write_segments_loop(stream, buf.segments, idx + 1)
         })
     }
 }
