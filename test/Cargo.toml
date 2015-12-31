@@ -11,10 +11,13 @@ name = "capnp_gj_test"
 path = "test.rs"
 
 
-[build-dependencies]
-capnpc = "0.5.0"
+[build-dependencies.capnpc]
+git = "https://github.com/dwrensha/capnpc-rust"
 
 [dependencies]
-capnp = "0.5.0"
 capnp-gj = {path = "./../"}
 gj = "*"
+
+
+[dependencies.capnp]
+git = "http://github.com/dwrensha/capnproto-rust"
