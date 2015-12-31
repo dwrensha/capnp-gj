@@ -1,6 +1,6 @@
 [package]
 name = "capnp-gj"
-version = "0.0.0"
+version = "0.0.1-dev"
 authors = ["David Renshaw <david@sandstorm.io>"]
 license = "MIT"
 description = "asynchronous I/O for Cap'n Proto"
@@ -11,4 +11,6 @@ keywords = ["async"]
 [dependencies]
 byteorder = "*"
 gj = "*"
-capnp = "*"
+
+[dependencies.capnp]
+git = "https://github.com/dwrensha/capnproto-rust"
