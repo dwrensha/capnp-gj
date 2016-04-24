@@ -10,16 +10,11 @@ build = "build.rs"
 name = "capnp_gj_test"
 path = "test.rs"
 
-
 [build-dependencies]
-capnpc = "0.6"
+capnpc = "0.7"
 
 [dependencies]
 capnp-gj = {path = "./../"}
-capnp = "0.6"
-
-[dependencies.gj]
-git = "https://github.com/dwrensha/gj.git"
-
-[dependencies.gjio]
-git = "https://github.com/dwrensha/gjio.git"
+capnp = "0.7"
+gj = "0.2"
+gjio = "0.1"
