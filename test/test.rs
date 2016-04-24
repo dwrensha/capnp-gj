@@ -22,6 +22,7 @@
 extern crate capnp;
 extern crate capnp_gj;
 extern crate gj;
+extern crate gjio;
 
 pub mod addressbook_capnp {
   include!(concat!(env!("OUT_DIR"), "/addressbook_capnp.rs"));

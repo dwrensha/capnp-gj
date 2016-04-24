@@ -22,7 +22,7 @@
 use byteorder::{ByteOrder, LittleEndian};
 use capnp::{Word, message};
 use gj::Promise;
-use gj::io::{AsyncRead, AsyncWrite};
+use gjio::{AsyncRead, AsyncWrite};
 
 pub struct OwnedSegments {
     segment_slices : Vec<(usize, usize)>,
@@ -68,17 +68,17 @@ pub fn read_message<S>(stream: S,
     })
 }
 
-fn try_read_segment_table<S>(stream: S)
+fn try_read_segment_table<S>(mut stream: S)
                          -> Promise<(S, Option<(usize, Vec<(usize, usize)>)>), ::capnp::Error>
     where S: AsyncRead
 {
     let buf: Vec<u8> = vec![0; 8];
     stream.try_read(buf, 8).then_else(move |r| match r {
-        Err(e) => Promise::err(e.error.into()),
-        Ok((stream, _, 0)) => Promise::ok((stream, None)),
-        Ok((_, _, n)) if n < 8 =>
+        Err(e) => Promise::err(e.into()),
+        Ok((_, 0)) => Promise::ok((stream, None)),
+        Ok(( _, n)) if n < 8 =>
             Promise::err(::capnp::Error::failed("premature EOF".to_string())),
-        Ok((stream, buf, _)) => {
+        Ok((buf, _)) => {
             let segment_count = LittleEndian::read_u32(&buf[0..4]).wrapping_add(1) as usize;
             if segment_count >= 512 {
                 unimplemented!()
@@ -100,8 +100,8 @@ fn try_read_segment_table<S>(stream: S)
                     };
                 let buf_len = buf.len();
                 stream.read(buf, buf_len).map_else(move |r| match r {
-                    Err(e) => Err(e.error.into()),
-                    Ok((stream, buf, _)) => {
+                    Err(e) => Err(e.into()),
+                    Ok((buf, _)) => {
                         for idx in 0..(segment_count - 1) {
                             let segment_len =
                                 LittleEndian::read_u32(&buf[(idx * 4)..((idx + 1) * 4)]) as usize;
@@ -132,7 +132,7 @@ impl AsMut<[u8]> for WordVec {
     }
 }
 
-fn read_segments<S>(stream: S,
+fn read_segments<S>(mut stream: S,
                     total_words: usize,
                     segment_slices: Vec<(usize, usize)>,
                     options: message::ReaderOptions) -> Promise<(S, message::Reader<OwnedSegments>),
@@ -142,8 +142,8 @@ fn read_segments<S>(stream: S,
     let owned_space = WordVec(Word::allocate_zeroed_vec(total_words));
     let len = owned_space.as_ref().len();
     stream.read(owned_space, len).map_else(move |r| match r {
-        Err(e) => Err(e.error.into()),
-        Ok((stream, vec, _)) => {
+        Err(e) => Err(e.into()),
+        Ok((vec, _)) => {
             let segments = OwnedSegments { segment_slices: segment_slices, owned_space: vec.0 };
             Ok((stream, message::Reader::new(segments, options)))
         }
@@ -187,7 +187,7 @@ pub fn write_message<S, A>(stream: S,
     })
 }
 
-fn write_segment_table<S, A>(stream: S,
+fn write_segment_table<S, A>(mut stream: S,
                              segments: OutputSegmentsContainer<A>)
                              -> Promise<(S, OutputSegmentsContainer<A>), ::capnp::Error>
     where S: AsyncWrite, A: message::Allocator + 'static
@@ -200,8 +200,8 @@ fn write_segment_table<S, A>(stream: S,
         LittleEndian::write_u32(&mut buf[((idx + 1) * 4)..((idx + 2) * 4)], segments.get()[idx].len() as u32);
     }
     stream.write(buf).map_else(move |r| match r {
-        Err(e) => Err(e.error.into()),
-        Ok((stream, _)) => Ok((stream, segments))
+        Err(e) => Err(e.into()),
+        Ok(_) => Ok((stream, segments))
     })
 }
 
@@ -224,7 +224,7 @@ fn write_segments<S, A>(stream: S,
     write_segments_loop(stream, segments, 0)
 }
 
-fn write_segments_loop<S, A>(stream: S,
+fn write_segments_loop<S, A>(mut stream: S,
                              segments: OutputSegmentsContainer<A>,
                              idx: usize)
                         -> Promise<(S, OutputSegmentsContainer<A>), ::capnp::Error>
@@ -235,8 +235,8 @@ fn write_segments_loop<S, A>(stream: S,
     } else {
         let buf = WritingSegment { idx: idx, segments: segments };
         stream.write(buf).then_else(move |r| match r {
-            Err(e) => Promise::err(e.error.into()),
-            Ok((stream, buf)) =>
+            Err(e) => Promise::err(e.into()),
+            Ok(buf) =>
                 write_segments_loop(stream, buf.segments, idx + 1)
         })
     }

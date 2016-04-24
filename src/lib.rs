@@ -22,6 +22,7 @@
 extern crate byteorder;
 extern crate capnp;
 extern crate gj;
+extern crate gjio;
 
 pub mod serialize;
 
