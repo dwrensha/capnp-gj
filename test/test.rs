@@ -86,22 +86,20 @@ mod tests {
             read_address_book(address_book.borrow_as_reader());
         }
 
-        gj::EventLoop::top_level(move |wait_scope| {
-            let (join_handle, stream) = gj::io::unix::spawn(move |stream, wait_scope| {
-                let promise =
-                    serialize::read_message(stream, message::ReaderOptions::new()).then(|(_, message_reader)| {
-                        let address_book = message_reader.get_root::<address_book::Reader>().unwrap();
-                        read_address_book(address_book);
-                        gj::Promise::ok(())
-                    });
-                promise.wait(wait_scope).unwrap();
-                Ok(())
-            }).unwrap();
+        gj::EventLoop::top_level(move |wait_scope| -> Result<(), ::std::io::Error> {
+            let mut event_port = try!(::gjio::EventPort::new());
+            let network = event_port.get_network();
+            let (stream0, stream1) = try!(network.new_socket_pair());
 
-            let promise = serialize::write_message(stream, message);
+            let promise0 = serialize::write_message(stream0, message).map(|_| Ok(()));
+            let promise1 =
+                serialize::read_message(stream1, message::ReaderOptions::new()).then(|(_, message_reader)| {
+                    let address_book = message_reader.get_root::<address_book::Reader>().unwrap();
+                    read_address_book(address_book);
+                    gj::Promise::ok(())
+                });
 
-            promise.wait(wait_scope).unwrap();
-            join_handle.join().unwrap();
+            gj::Promise::all(vec![promise0, promise1].into_iter()).wait(wait_scope, &mut event_port).unwrap();
             Ok(())
         }).unwrap();
 
