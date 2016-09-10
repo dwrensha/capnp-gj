@@ -81,12 +81,9 @@ fn try_read_segment_table<S>(mut stream: S)
         Ok((buf, _)) => {
             let segment_count = LittleEndian::read_u32(&buf[0..4]).wrapping_add(1) as usize;
             if segment_count >= 512 {
-                unimplemented!()
-                // TODO error
-                //return Err()
+                return Promise::err(::capnp::Error::failed(format!("Too many segments: {}", segment_count)))
             } else if segment_count == 0 {
-                unimplemented!()
-                // TODO error. too few segments.
+                return Promise::err(::capnp::Error::failed(format!("Too few segments: {}", segment_count)))
             }
             let mut segment_slices = Vec::with_capacity(segment_count);
             let mut total_words = LittleEndian::read_u32(&buf[4..8]) as usize;
